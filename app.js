@@ -14,6 +14,7 @@ const state = {
   poopItems: [],
   sick: false,
   gameOver: false,
+  endReason: null,
   ticks: 0,
   day: 1,
   sound: true,
@@ -74,25 +75,92 @@ function hashName(name) {
 
 async function getHardyCount(player) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8500);
+  const timeout = setTimeout(() => controller.abort(), 12000);
   try {
-    const [collectionRes, detailsRes] = await Promise.all([
-      fetch(`https://api2.splinterlands.com/cards/collection/${encodeURIComponent(player)}`, { signal: controller.signal }),
-      fetch("https://api2.splinterlands.com/cards/get_details", { signal: controller.signal })
+    const requestOptions = {
+      signal: controller.signal,
+      cache: "no-store",
+      headers: { Accept: "application/json" }
+    };
+    const encodedPlayer = encodeURIComponent(player.trim().toLowerCase());
+    const [detailsPrimary, detailsFallback, ...collectionResults] = await Promise.allSettled([
+      fetch(`https://api2.splinterlands.com/cards/get_details?t=${Date.now()}`, requestOptions),
+      fetch(`https://api.splinterlands.io/cards/get_details?t=${Date.now()}`, requestOptions),
+      fetch(`https://api2.splinterlands.com/cards/collection/${encodedPlayer}?t=${Date.now()}`, requestOptions),
+      fetch(`https://api.splinterlands.io/cards/collection/${encodedPlayer}?t=${Date.now()}`, requestOptions)
     ]);
-    if (!collectionRes.ok || !detailsRes.ok) throw new Error("The collection service did not answer.");
-    const collection = await collectionRes.json();
-    const details = await detailsRes.json();
-    const hardy = details.find((card) => String(card.name).toLowerCase() === "hardy stonefish");
+
+    let detailsPayload;
+    for (const result of [detailsPrimary, detailsFallback]) {
+      if (result.status === "fulfilled" && result.value.ok) {
+        try {
+          detailsPayload = await result.value.json();
+          break;
+        } catch {
+          // Try the other official card catalogue.
+        }
+    }
+    }
+    if (!detailsPayload) throw new Error("The card catalogue did not answer.");
+
+    const details = findCardArray(detailsPayload);
+    const hardy = details.find((card) => normalizeName(card.name || card.card_name) === "hardy stonefish");
     if (!hardy) throw new Error("Hardy Stonefish has achieved perfect camouflage.");
-    const cards = collection.cards || collection;
-    if (!Array.isArray(cards)) throw new Error("No collection was found for that keeper.");
-    return cards
-      .filter((card) => Number(card.card_detail_id) === Number(hardy.id))
-      .reduce((sum, card) => sum + Math.max(1, Number(card.qty || 1)), 0);
+
+    const hardyIds = new Set([
+      hardy.id,
+      hardy.card_detail_id,
+      hardy.cardDetailId
+    ].filter((value) => value !== undefined && value !== null).map(String));
+
+    const counts = [];
+    for (const result of collectionResults) {
+      if (result.status !== "fulfilled" || !result.value.ok) continue;
+      try {
+        const payload = await result.value.json();
+        const cards = findCardArray(payload);
+        if (!cards.length) {
+          counts.push(0);
+          continue;
+        }
+        counts.push(cards.reduce((sum, card) => {
+          const nested = card.card_detail || card.cardDetails || card.details || {};
+          const cardId = card.card_detail_id ?? card.cardDetailId ?? nested.id ?? card.id;
+          const cardName = card.name ?? card.card_name ?? nested.name;
+          const isHardy = hardyIds.has(String(cardId)) || normalizeName(cardName) === "hardy stonefish";
+          if (!isHardy) return sum;
+          const quantity = Number(card.qty ?? card.quantity ?? card.count ?? card.num_cards ?? 1);
+          return sum + (Number.isFinite(quantity) && quantity > 0 ? quantity : 1);
+        }, 0));
+      } catch {
+        // One API format failed to parse; another successful official response can still be used.
+      }
+    }
+
+    if (!counts.length) throw new Error("The collection service was blocked by this browser.");
+    return Math.max(...counts);
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function normalizeName(value) {
+  return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function findCardArray(payload) {
+  if (Array.isArray(payload)) return payload;
+  const candidates = [
+    payload?.cards,
+    payload?.collection,
+    payload?.data,
+    payload?.result,
+    payload?.items,
+    payload?.data?.cards,
+    payload?.result?.cards,
+    payload?.collection?.cards
+  ];
+  return candidates.find(Array.isArray) || [];
 }
 
 function setStatus(message, isError = false) {
@@ -304,6 +372,7 @@ function evaluateHealth() {
   if (state.hunger < 25 || state.hygiene < 28) state.sick = true;
   if (state.sick) state.health = clamp(state.health - 3);
   else if (state.hunger > 55 && state.hygiene > 60) state.health = clamp(state.health + 2);
+  if (state.health <= 0 && !state.gameOver) endGame("death");
 }
 
 function updateMeters() {
@@ -332,7 +401,7 @@ function updateMeters() {
   const hiddenCount = Math.round(state.fish.length * Math.max(0, 55 - state.mood) / 130);
   state.fish.forEach((fish, index) => {
     fish.classList.toggle("hidden-fish", index < hiddenCount);
-    fish.classList.toggle("sick", state.sick && index % 3 === 0);
+    fish.classList.toggle("sick", !state.gameOver && state.sick && index % 3 === 0);
   });
   renderPoop();
   saveGame();
@@ -356,6 +425,7 @@ function saveGame() {
     poopItems: state.poopItems,
     sick: state.sick,
     gameOver: state.gameOver,
+    endReason: state.endReason,
     ticks: state.ticks,
     day: state.day,
     savedAt: Date.now()
@@ -470,7 +540,7 @@ function act(type) {
       state.glass = clamp(state.glass - damage);
       thud();
       if (state.glass === 0) {
-        endGame();
+        endGame("breach");
       }
       updateMeters();
     }, 350);
@@ -481,17 +551,40 @@ function act(type) {
   updateMeters();
 }
 
-function endGame() {
+function endGame(reason = "breach") {
   state.gameOver = true;
-  showMessage("TANK BREACHED. Sarl Mudfoot sends his regards.");
-  writeLog("The aquarium is now a floor feature. The Hardy Stonefish remain untroubled.");
+  state.endReason = reason;
+  presentEnding(reason, true);
+  saveGame();
+}
+
+function presentEnding(reason, writeEndingLog = false) {
+  const death = reason === "death";
+  $("#gameOverEyebrow").textContent = death ? "A MOMENT OF STONY SILENCE" : "CATASTROPHIC HUSBANDRY EVENT";
+  $("#gameOverTitle").textContent = death ? "The shoal has passed." : "Aquarium breached.";
+  $("#gameOverText").textContent = death
+    ? "Their final act was to become completely indistinguishable from ordinary rocks."
+    : "The Hardy Stonefish are free. Your carpet is not expected to survive.";
+  $("#restartGame").textContent = death ? "Start a new shoal" : "Replace aquarium";
+  showMessage(death ? "No vital signs. Admittedly, there were never many." : "TANK BREACHED. Sarl Mudfoot sends his regards.");
+  if (writeEndingLog) {
+    writeLog(death
+      ? "The aquarium has become a memorial garden. Hygiene reports will be sealed."
+      : "The aquarium is now a floor feature. The Hardy Stonefish remain untroubled.");
+  }
   $("#gameOver").classList.remove("hidden");
   $$("[data-action]").forEach((button) => { button.disabled = true; });
   state.fish.forEach((fish) => {
-    fish.style.transitionDuration = ".8s";
-    fish.style.bottom = "-180px";
+    if (death) {
+      fish.classList.remove("sick", "happy");
+      fish.classList.add("deceased");
+      fish.style.transitionDuration = "4s";
+      fish.style.bottom = `${36 + Math.random() * 35}px`;
+    } else {
+      fish.style.transitionDuration = ".8s";
+      fish.style.bottom = "-180px";
+    }
   });
-  saveGame();
 }
 
 function resetTank() {
@@ -548,6 +641,7 @@ function enterTank(player, count, source = "live") {
     poopItems: [],
     sick: false,
     gameOver: false,
+    endReason: null,
     ticks: 0,
     day: 1
   });
@@ -561,6 +655,7 @@ function enterTank(player, count, source = "live") {
   updateMeters();
   $("#gameOver").classList.toggle("hidden", !state.gameOver);
   $$("[data-action]").forEach((button) => { button.disabled = state.gameOver; });
+  if (state.gameOver) presentEnding(state.endReason || (state.glass <= 0 ? "breach" : "death"));
   showMessage(count
     ? `${Math.min(count, 60)} specimens visible. ${count > 60 ? "The rest are hiding for performance reasons." : "They are doing absolutely nothing."}`
     : "No Hardy Stonefish found. A pity specimen has been issued.");
@@ -652,6 +747,7 @@ setInterval(() => {
   const pollution = wasteLoad();
   state.hygiene = clamp(state.hygiene - Math.max(.5, pollution / 7));
   evaluateHealth();
+  if (state.gameOver) return;
   showMessage(state.sick
     ? "Some of the rocks look green. Greener than usual."
     : pollution > 15

@@ -161,6 +161,8 @@ input:focus { background: rgba(255,255,255,.08); }
 .stonefish.slam { animation: slam .6s cubic-bezier(.2,.8,.1,1); z-index:20; }
 .stonefish.happy img { filter: saturate(1.5) brightness(1.12) drop-shadow(0 0 10px rgba(215,245,74,.75)); }
 .stonefish.sick img { filter:grayscale(.55) sepia(.25) hue-rotate(55deg) drop-shadow(0 0 9px rgba(178,255,114,.65)); }
+.stonefish.deceased { animation:none; opacity:.62; }
+.stonefish.deceased img { filter:grayscale(1) brightness(.58); transform:scaleX(var(--facing,1)) rotate(180deg); transition:transform 1.2s ease,filter 1s; }
 .stonefish.sick::after { content:"+"; position:absolute; right:16%; top:10%; color:#d7f54a; background:#173725; border:1px solid currentColor; border-radius:50%; width:22px; height:22px; display:grid; place-items:center; font-weight:bold; animation:bob-status 1.2s ease-in-out infinite alternate; }
 .stonefish.hidden-fish { opacity: .32; filter: grayscale(.5) drop-shadow(3px 5px 2px rgba(0,0,0,.12)); }
 .stonefish.fish-rock { animation-name:rock-breathe; }
