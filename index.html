@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#081f2b">
+  <title>Hardy Stonefish Aquarium</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header class="masthead">
+      <div>
+        <p class="eyebrow">Splinterlands Department of Questionable Collections</p>
+        <h1>Hardy Stonefish Aquarium</h1>
+      </div>
+      <button id="soundButton" class="icon-button" aria-label="Toggle sound">sound: on</button>
+    </header>
+
+    <section id="loginPanel" class="login-panel">
+      <div class="intro">
+        <p class="kicker">TO THE UNTRAINED EYE...</p>
+        <h2>Your useless collection<br>has finally found a purpose.</h2>
+        <p>Enter a Splinterlands name. We’ll count every Hardy Stonefish and place the little buggers in a habitat they do not deserve.</p>
+      </div>
+      <form id="playerForm">
+        <label for="playerName">Keeper name</label>
+        <div class="input-row">
+          <input id="playerName" name="playerName" autocomplete="off" placeholder="Splinterlands username" maxlength="32" required>
+          <button type="submit">Fill the tank</button>
+        </div>
+        <p id="lookupStatus" class="status">Live collection lookup · no login required</p>
+        <button id="demoButton" type="button" class="text-button">Or try the suspiciously well-stocked demo tank</button>
+      </form>
+    </section>
+
+    <section id="gamePanel" class="game-panel hidden" aria-live="polite">
+      <div class="tank-wrap">
+        <div class="tank-top">
+          <div>
+            <p class="eyebrow">REGISTERED KEEPER</p>
+            <h2 id="keeperName">Mudfoot</h2>
+          </div>
+          <div class="tank-top-actions">
+            <div class="count-block">
+              <span id="fishCount">0</span>
+              <small>HARDY STONEFISH</small>
+            </div>
+            <button id="watchModeButton" class="watch-button" type="button">Full-screen aquarium</button>
+          </div>
+        </div>
+
+        <div id="tank" class="tank">
+          <div class="water-shimmer"></div>
+          <div class="light-ray ray-one"></div>
+          <div class="light-ray ray-two"></div>
+          <div id="bubbleLayer" class="bubble-layer"></div>
+          <div id="wasteLayer" class="waste-layer"></div>
+          <div id="fishLayer" class="fish-layer"></div>
+          <div class="sand"></div>
+          <div class="coral coral-a"></div>
+          <div class="coral coral-b"></div>
+          <div class="plant plant-a"></div>
+          <div class="plant plant-b"></div>
+          <div id="glassCracks" class="glass-cracks"></div>
+          <div id="tankMessage" class="tank-message">They are doing absolutely nothing.</div>
+          <div id="gameOver" class="game-over hidden">
+            <p class="eyebrow">CATASTROPHIC HUSBANDRY EVENT</p>
+            <h2>Aquarium breached.</h2>
+            <p>The Hardy Stonefish are free. Your carpet is not expected to survive.</p>
+            <button id="restartGame" type="button">Replace aquarium</button>
+          </div>
+          <div id="watchDock" class="watch-dock">
+            <button id="dockToggle" class="dock-toggle" type="button" aria-expanded="false">
+              <span>☰</span> Care
+            </button>
+            <div id="dockPanel" class="dock-panel" aria-hidden="true">
+              <div class="dock-status">
+                <div><span>♥</span><i id="dockMood"></i><b id="dockMoodValue">62</b></div>
+                <div><span>Q</span><i id="dockHunger"></i><b id="dockHungerValue">72</b></div>
+                <div><span>≈</span><i id="dockHygiene"></i><b id="dockHygieneValue">90</b></div>
+                <div><span>+</span><i id="dockHealth"></i><b id="dockHealthValue">100</b></div>
+              </div>
+              <div class="dock-actions">
+                <button data-action="feed" title="Feed quartz">Q<span>Feed</span></button>
+                <button data-action="play" title="Play">♥<span>Play</span></button>
+                <button data-action="clean" title="Clean poop">≈<span>Clean</span></button>
+                <button data-action="medicine" title="Give medicine">+<span>Medicine</span></button>
+                <button data-action="polish" title="Polish scales">✦<span>Polish</span></button>
+                <button data-action="provoke" class="danger" title="Tap glass">!<span>Tap</span></button>
+              </div>
+              <button id="exitWatchMode" class="exit-watch" type="button">Exit full screen</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button data-action="feed"><span>Q</span> Feed quartz</button>
+          <button data-action="play"><span>♥</span> Play</button>
+          <button data-action="clean"><span>≈</span> Clean poop</button>
+          <button data-action="medicine"><span>+</span> Medicine</button>
+          <button data-action="polish"><span>✦</span> Polish scales</button>
+          <button data-action="provoke" class="danger"><span>!</span> Tap glass</button>
+        </div>
+      </div>
+
+      <aside class="side-panel">
+        <article class="specimen-card">
+          <img src="hardy-stonefish.png" alt="Hardy Stonefish concealed by coral">
+          <div>
+            <p class="eyebrow">SPECIMEN HS-001</p>
+            <h3>Hardy Stonefish</h3>
+            <p>Rock. Fish. Terrible investment. Beloved pet.</p>
+          </div>
+        </article>
+
+        <article class="meters">
+          <h3>Tank telemetry</h3>
+          <div class="meter-row">
+            <div><span>Happiness</span><b id="moodLabel">unmoved</b></div>
+            <div class="meter"><i id="moodMeter"></i></div>
+          </div>
+          <div class="meter-row">
+            <div><span>Hunger</span><b id="hungerLabel">peckish</b></div>
+            <div class="meter hunger"><i id="hungerMeter"></i></div>
+          </div>
+          <div class="meter-row">
+            <div><span>Hygiene</span><b id="hygieneLabel">acceptable</b></div>
+            <div class="meter hygiene"><i id="hygieneMeter"></i></div>
+          </div>
+          <div class="meter-row">
+            <div><span>Health</span><b id="healthLabel">hardy</b></div>
+            <div class="meter health"><i id="healthMeter"></i></div>
+          </div>
+          <div class="meter-row">
+            <div><span>Glass integrity</span><b id="glassLabel">pristine</b></div>
+            <div class="meter glass"><i id="glassMeter"></i></div>
+          </div>
+        </article>
+
+        <article class="log-card">
+          <div class="log-head">
+            <h3>Keeper’s log</h3>
+            <span id="dayCounter">DAY 1</span>
+          </div>
+          <p id="logText">The inhabitants have mistaken the aquarium décor for relatives.</p>
+        </article>
+
+        <button id="changeKeeper" class="reset-button">Check another keeper</button>
+      </aside>
+    </section>
+  </main>
+
+  <template id="fishTemplate">
+    <button class="stonefish" type="button" aria-label="A Hardy Stonefish">
+      <img src="hardy-stonefish-sprite.png" alt="">
+    </button>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
